@@ -154,17 +154,18 @@ fn main() -> WaveResult<()> {
 
     let channels = 1;
 
-    let timestretch_ratio = 0.8;
+    let timestretch_ratio = 1.0;
 
     let size = ((fs * (bit / 8) * channels * (input_len / fs)) as f64 * timestretch_ratio) as usize;
 
-    let frame_size = 2048;
-    let fft_size = 4 * frame_size;
-    let synthesis_hopsize = frame_size / 4;
-    let analysis_hopsize = (synthesis_hopsize as f64 / timestretch_ratio) as usize;
-    let analysis_frequency_step = input_len / fft_size;
-    let synthesis_frequency_step = (timestretch_ratio * analysis_frequency_step as f64) as usize;
-    let number_of_frame = input_len / analysis_hopsize;
+    let frame_size = 4096;
+    let fft_size = 2 * frame_size;
+    let synthesis_hopsize = frame_size as f64 / 4.0;
+    let analysis_hopsize = (synthesis_hopsize / timestretch_ratio).round();
+    let analysis_frequency_step = input_len as f64 / fft_size as f64;
+    let scalling_factor = synthesis_hopsize / synthesis_hopsize / timestretch_ratio;
+    let synthesis_frequency_step = scalling_factor * analysis_frequency_step;
+    let number_of_frame = input_len / analysis_hopsize as usize;
 
     let mut result_buffer: Vec<f64> = vec![0.0; (input_len as f64 * timestretch_ratio) as usize];
     let mut x_real: Vec<f64> = vec![0.0; fft_size];
@@ -175,7 +176,7 @@ fn main() -> WaveResult<()> {
     let mut magnitude: Vec<Vec<f64>> = vec![vec![0.0; fft_size]; number_of_frame];
     let mut phase: Vec<Vec<f64>> = vec![vec![0.0; fft_size]; number_of_frame];
     let mut alter_phase: Vec<Vec<f64>> = vec![vec![0.0; fft_size]; number_of_frame];
-    let omega: Vec<f64> = vec![0.0; fft_size].iter().enumerate().map(|(i, _)| ((2.0 * PI) * analysis_hopsize as f64 * i as f64) / fft_size as f64).collect();
+    let omega: Vec<f64> = vec![0.0; fft_size].iter().enumerate().map(|(i, _)| ((2.0 * PI) * analysis_hopsize * i as f64) / fft_size as f64).collect();
     let mut time_delta_phi: Vec<Vec<f64>> = vec![vec![0.0; fft_size]; number_of_frame];
     let mut frequency_delta_phi: Vec<Vec<f64>> = vec![vec![0.0; fft_size]; number_of_frame];
     let mut frequency_forward_delta_phi: Vec<Vec<f64>> = vec![vec![0.0; fft_size]; number_of_frame];
@@ -186,11 +187,9 @@ fn main() -> WaveResult<()> {
     let mut offset = 0;
     let mut alter_offset = 0;
 
-    println!("resolution in Hz: {:?}", (fs / frame_size) as f64);
-
     for i in 0..number_of_frame {
 
-        offset = analysis_hopsize * i;
+        offset = analysis_hopsize as usize * i;
 
         // zero padding
         x_real.fill(0.0);
@@ -204,7 +203,7 @@ fn main() -> WaveResult<()> {
             }
         }
         // shift real signal to center
-        x_real.rotate_right(frame_size / 2);
+        x_real.rotate_right(frame_size);
         // FFT
         fft(&mut x_real, &mut x_imag, fft_size, false);
 
@@ -219,7 +218,7 @@ fn main() -> WaveResult<()> {
 
     for i in 0..number_of_frame {
 
-        alter_offset = synthesis_hopsize * i;
+        alter_offset = synthesis_hopsize as usize * i;
 
         // (∆tφa) (m,n) and (∆fφa) (m,n) are computed for all m and current n
         for j in 0..fft_size {
@@ -230,26 +229,26 @@ fn main() -> WaveResult<()> {
             time_delta_phi[i][j] = if
             i as isize - 2 <= 0
             || i + 1 >= number_of_frame {
-                synthesis_hopsize as f64 *
-                ( ( (1.0 / analysis_hopsize as f64) * principal_argument(phase[i][j] - omega[j]) + ((2.0 * PI * j as f64) / fft_size as f64) )
+                synthesis_hopsize *
+                ( ( (1.0 / analysis_hopsize) * principal_argument(phase[i][j] - omega[j]) + ((2.0 * PI * j as f64) / fft_size as f64) )
                 )
             } else {
-                synthesis_hopsize as f64 / 2.0 *
-                ( ( 1.0 / analysis_hopsize as f64 * principal_argument(phase[i - 1][j] - phase[i - 2][j] - omega[j]) + ((2.0 * PI * j as f64) / fft_size as f64) )
-                + ( 1.0 / analysis_hopsize as f64 * principal_argument(phase[i + 1][j] - phase[i][j] - omega[j]) + ((2.0 * PI * j as f64) / fft_size as f64) )
+                synthesis_hopsize / 2.0 *
+                ( ( 1.0 / analysis_hopsize * principal_argument(phase[i - 1][j] - phase[i - 2][j] - omega[j]) + ((2.0 * PI * j as f64) / fft_size as f64) )
+                + ( 1.0 / analysis_hopsize * principal_argument(phase[i + 1][j] - phase[i][j] - omega[j]) + ((2.0 * PI * j as f64) / fft_size as f64) )
                 )
             };
 
             frequency_delta_phi[i][j] = if
             j + 1 >= fft_size
             || j as isize - 1 < 0 {
-                synthesis_frequency_step as f64 *
-                ( 1.0 / analysis_frequency_step as f64 * principal_argument(phase[i][j])
+                synthesis_frequency_step *
+                ( 1.0 / analysis_frequency_step * principal_argument(phase[i][j])
                 )
             } else {
-                synthesis_frequency_step as f64 / 2.0 *
-                ( 1.0 / analysis_frequency_step as f64 * principal_argument(phase[i][j] - phase[i][j - 1])
-                + 1.0 / analysis_frequency_step as f64 * principal_argument(phase[i][j + 1] - phase[i][j])
+                synthesis_frequency_step / 2.0 *
+                ( 1.0 / analysis_frequency_step * principal_argument(phase[i][j] - phase[i][j - 1])
+                + 1.0 / analysis_frequency_step * principal_argument(phase[i][j + 1] - phase[i][j])
                 )
             };
 
@@ -258,9 +257,9 @@ fn main() -> WaveResult<()> {
             || j as isize - 1 < 0 {
                 frequency_delta_phi[i][j]
             } else {
-                synthesis_frequency_step as f64 / 2.0 *
-                ( 1.0 / analysis_frequency_step as f64 * principal_argument(phase[i][j] - phase[i][j - 1])
-                + 1.0 / analysis_frequency_step as f64 * principal_argument(phase[i][j + 2] - phase[i][j + 1])
+                synthesis_frequency_step / 2.0 *
+                ( 1.0 / analysis_frequency_step * principal_argument(phase[i][j] - phase[i][j - 1])
+                + 1.0 / analysis_frequency_step * principal_argument(phase[i][j + 2] - phase[i][j + 1])
                 )
             };
 
@@ -269,9 +268,9 @@ fn main() -> WaveResult<()> {
             || j as isize - 2 < 0 {
                 frequency_delta_phi[i][j]
             } else {
-                synthesis_frequency_step as f64 / 2.0 *
-                ( 1.0 / analysis_frequency_step as f64 * principal_argument(phase[i][j - 1] - phase[i][j - 2])
-                + 1.0 / analysis_frequency_step as f64 * principal_argument(phase[i][j + 1] - phase[i][j])
+                synthesis_frequency_step / 2.0 *
+                ( 1.0 / analysis_frequency_step * principal_argument(phase[i][j - 1] - phase[i][j - 2])
+                + 1.0 / analysis_frequency_step * principal_argument(phase[i][j + 1] - phase[i][j])
                 )
             };
         }
@@ -289,7 +288,7 @@ fn main() -> WaveResult<()> {
         fft(&mut y_real, &mut y_imag, fft_size, true);
 
         // shift real signal to lead
-        y_real.rotate_left(frame_size / 2);
+        y_real.rotate_left(frame_size);
 
         // windowning real signal
         for j in 0..frame_size {
