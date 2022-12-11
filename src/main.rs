@@ -10,7 +10,7 @@ use std::collections::BinaryHeap;
 use rand::Rng;
 
 use read::{ wav_read, WaveResult };
-use process::{ hanning_window, principal_argument, amplitude_correction_factor };
+use process::{ hanning_window, principal_argument };
 use fft::{ fft };
 use write::{ wav_write };
 use heap::MaxHeap;
@@ -145,7 +145,7 @@ fn phase_gradient(fft_size: usize, magnitude: &Vec<Vec<f64>>, phase: &mut Vec<Ve
 #[allow(non_snake_case)]
 fn main() -> WaveResult<()> {
 
-    let source = wav_read("./05s_Hyper Bass (feat. Yunomi).wav")?;
+    let source = wav_read("./Hyper Bass (feat. Yunomi).wav")?;
 
     let fs = source.sample_rate;
     let bit = source.bits_per_sample;
@@ -158,13 +158,13 @@ fn main() -> WaveResult<()> {
 
     let size = ((fs * (bit / 8) * channels * (input_len / fs)) as f64 * timestretch_ratio) as usize;
 
-    let frame_size = 2048;
+    let frame_size = 4096;
     let fft_size = 2 * frame_size;
     let synthesis_hopsize = frame_size as f64 / 4.0;
     let analysis_hopsize = (synthesis_hopsize / timestretch_ratio).round();
     let analysis_frequency_step = input_len as f64 / fft_size as f64;
-    let scalling_factor = synthesis_hopsize / analysis_hopsize;
-    let synthesis_frequency_step = scalling_factor * analysis_frequency_step;
+    let scalling_factor = synthesis_hopsize / synthesis_hopsize / timestretch_ratio;
+    let synthesis_frequency_step = (scalling_factor * analysis_frequency_step).round();
     let number_of_frame = input_len / analysis_hopsize as usize;
 
     let mut result_buffer: Vec<f64> = vec![0.0; (input_len as f64 * timestretch_ratio) as usize];
@@ -183,10 +183,6 @@ fn main() -> WaveResult<()> {
     let mut frequency_backward_delta_phi = vec![vec![0.0; fft_size]; number_of_frame];
 
     let analysis_window = hanning_window(frame_size);
-
-    // The scalling factor will bigger, the amplitude will weaker.
-    // So this a simple exponent value that base coefficient number for correctioning amplitude.
-    let amplitude_correction_factor_by_ratio = amplitude_correction_factor(timestretch_ratio);
 
     let mut offset = 0;
     let mut alter_offset = 0;
@@ -303,7 +299,7 @@ fn main() -> WaveResult<()> {
             if alter_offset + j >= result_buffer.len() {
                 break;
             }
-            result_buffer[alter_offset + j] = result_buffer[alter_offset + j] + y_real[j] * amplitude_correction_factor_by_ratio;
+            result_buffer[alter_offset + j] = result_buffer[alter_offset + j] + y_real[j];
         }
     }
 
