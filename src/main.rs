@@ -4,9 +4,11 @@ pub mod fft;
 pub mod read;
 pub mod write;
 pub mod heap;
+pub mod command;
 
 use std::f64::consts::{ PI };
 use std::collections::BinaryHeap;
+use clap::Parser;
 use rand::Rng;
 
 use read::{ wav_read, WaveResult };
@@ -14,6 +16,7 @@ use process::{ hanning_window, principal_argument };
 use fft::{ fft };
 use write::{ wav_write };
 use heap::MaxHeap;
+use command::{ Args };
 
 fn phase_gradient(fft_size: usize, magnitude: &Vec<Vec<f64>>, phase: &mut Vec<Vec<f64>>, alter_phase: &mut Vec<Vec<f64>>, time_delta_phi: &Vec<Vec<f64>>, frequency_forward_delta_phi: &Vec<Vec<f64>>, frequency_backward_delta_phi: &Vec<Vec<f64>>, frame: usize) {
 
@@ -144,30 +147,40 @@ fn phase_gradient(fft_size: usize, magnitude: &Vec<Vec<f64>>, phase: &mut Vec<Ve
 
 #[allow(non_snake_case)]
 fn main() -> WaveResult<()> {
+	// get settings from cli
+    let args = Args::parse();
 
-    let source = wav_read("./Hyper Bass (feat. Yunomi).wav")?;
+	let mode = args.mode;
+	let ratio = args.ratio;
+	let input_path = args.i.unwrap_or("./Hyper Bass (feat. Yunomi).wav".to_string());
+	let output_path = args.o.unwrap_or("./output.wav".to_string());
+	let buffer = args.buffer.unwrap_or(4096);
+	let wave_size_ratio = if mode == command::Mode::TimeStretch {
+		ratio
+	} else {
+		1.0
+	};
+
+    let source = wav_read(&input_path)?;
 
     let fs = source.sample_rate;
     let bit = source.bits_per_sample;
+	let channels = 1;
     let input: Vec<f64> = source.normalized_sample_data;
     let input_len = input.len();
 
-    let channels = 1;
+    let size = ((fs * (bit / 8) * channels * (input_len / fs)) as f64 * wave_size_ratio) as usize;
 
-    let timestretch_ratio = 1.0;
-
-    let size = ((fs * (bit / 8) * channels * (input_len / fs)) as f64 * timestretch_ratio) as usize;
-
-    let frame_size = 4096;
+    let frame_size = buffer;
     let fft_size = 2 * frame_size;
     let synthesis_hopsize = frame_size as f64 / 4.0;
-    let analysis_hopsize = (synthesis_hopsize / timestretch_ratio).round();
+    let analysis_hopsize = (synthesis_hopsize / ratio).round();
     let analysis_frequency_step = input_len as f64 / fft_size as f64;
-    let scalling_factor = synthesis_hopsize / synthesis_hopsize / timestretch_ratio;
+    let scalling_factor = synthesis_hopsize / synthesis_hopsize / ratio;
     let synthesis_frequency_step = (scalling_factor * analysis_frequency_step).round();
     let number_of_frame = input_len / analysis_hopsize as usize;
 
-    let mut result_buffer: Vec<f64> = vec![0.0; (input_len as f64 * timestretch_ratio) as usize];
+    let mut result_buffer: Vec<f64> = vec![0.0; (input_len as f64 * wave_size_ratio) as usize];
     let mut x_real: Vec<f64> = vec![0.0; fft_size];
     let mut x_imag: Vec<f64> = vec![0.0; fft_size];
     let mut y_real: Vec<f64> = vec![0.0; fft_size];
@@ -303,7 +316,7 @@ fn main() -> WaveResult<()> {
         }
     }
 
-    let result = wav_write("result.wav", result_buffer, size, fs, bit)?;
+    let result = wav_write(&output_path, result_buffer, size, fs, bit)?;
 
     Ok(result)
 }
