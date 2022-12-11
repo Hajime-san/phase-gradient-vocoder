@@ -20,6 +20,12 @@ pub fn hanning_window(n: usize) -> Vec<f64> {
     window
 }
 
+/// Return exponent value that raised to 1.0
+pub fn amplitude_correction_factor(ratio: f64) -> f64 {
+    let ratio_log = ratio.log2().abs();
+    ratio_log * ratio_log + 1.0
+}
+
 fn interpolation(fft_size: &usize, interpolate_length: &usize, synthesized_buffer: &Vec<f64>, ratio: &f64) -> Vec<f64> {
     let factor = 1.0 / ratio;
     let mut x1 = 0.0;
@@ -43,4 +49,19 @@ fn interpolation(fft_size: &usize, interpolate_length: &usize, synthesized_buffe
     }
 
     buffer
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_amplitude_correction_factor() {
+        let acf = amplitude_correction_factor(1.0);
+        assert_eq!(acf, 1.0);
+        let acf = amplitude_correction_factor(2.0);
+        assert_eq!(acf, 2.0);
+        let acf = amplitude_correction_factor(0.5);
+        assert_eq!(acf, 2.0);
+    }
 }

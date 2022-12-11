@@ -10,7 +10,7 @@ use std::collections::BinaryHeap;
 use rand::Rng;
 
 use read::{ wav_read, WaveResult };
-use process::{ hanning_window, principal_argument };
+use process::{ hanning_window, principal_argument, amplitude_correction_factor };
 use fft::{ fft };
 use write::{ wav_write };
 use heap::MaxHeap;
@@ -184,6 +184,10 @@ fn main() -> WaveResult<()> {
 
     let analysis_window = hanning_window(frame_size);
 
+    // The scalling factor will bigger, the amplitude will weaker.
+    // So this a simple exponent value that base coefficient number for correctioning amplitude.
+    let amplitude_correction_factor_by_ratio = amplitude_correction_factor(timestretch_ratio);
+
     let mut offset = 0;
     let mut alter_offset = 0;
 
@@ -299,7 +303,7 @@ fn main() -> WaveResult<()> {
             if alter_offset + j >= result_buffer.len() {
                 break;
             }
-            result_buffer[alter_offset + j] = result_buffer[alter_offset + j] + y_real[j];
+            result_buffer[alter_offset + j] = result_buffer[alter_offset + j] + y_real[j] * amplitude_correction_factor_by_ratio;
         }
     }
 
