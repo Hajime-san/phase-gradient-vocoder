@@ -44,18 +44,3 @@ fn interpolation(fft_size: &usize, interpolate_length: &usize, synthesized_buffe
 
     buffer
 }
-
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn test_amplitude_correction_factor() {
-        let acf = amplitude_correction_factor(1.0);
-        assert_eq!(acf, 1.0);
-        let acf = amplitude_correction_factor(2.0);
-        assert_eq!(acf, 2.0);
-        let acf = amplitude_correction_factor(0.5);
-        assert_eq!(acf, 2.0);
-    }
-}
