@@ -158,12 +158,12 @@ fn main() -> WaveResult<()> {
 
     let size = ((fs * (bit / 8) * channels * (input_len / fs)) as f64 * timestretch_ratio) as usize;
 
-    let frame_size = 4096;
+    let frame_size = 2048;
     let fft_size = 2 * frame_size;
     let synthesis_hopsize = frame_size as f64 / 4.0;
     let analysis_hopsize = (synthesis_hopsize / timestretch_ratio).round();
     let analysis_frequency_step = input_len as f64 / fft_size as f64;
-    let scalling_factor = synthesis_hopsize / synthesis_hopsize / timestretch_ratio;
+    let scalling_factor = synthesis_hopsize / analysis_hopsize;
     let synthesis_frequency_step = scalling_factor * analysis_frequency_step;
     let number_of_frame = input_len / analysis_hopsize as usize;
 
