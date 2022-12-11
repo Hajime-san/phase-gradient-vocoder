@@ -20,7 +20,7 @@ pub fn hanning_window(n: usize) -> Vec<f64> {
     window
 }
 
-fn interpolation(fft_size: &usize, interpolate_length: &usize, synthesized_buffer: &Vec<f64>, ratio: &f64) -> Vec<f64> {
+pub fn interpolation(fft_size: &usize, interpolate_length: &usize, synthesized_buffer: &Vec<f64>, ratio: &f64) -> Vec<f64> {
     let factor = 1.0 / ratio;
     let mut x1 = 0.0;
     let mut buffer = vec![0.0; *interpolate_length];

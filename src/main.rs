@@ -12,7 +12,7 @@ use clap::Parser;
 use rand::Rng;
 
 use read::{ wav_read, WaveResult };
-use process::{ hanning_window, principal_argument };
+use process::{ hanning_window, principal_argument, interpolation };
 use fft::{ fft };
 use write::{ wav_write };
 use heap::MaxHeap;
@@ -231,7 +231,12 @@ fn main() -> WaveResult<()> {
 
     for i in 0..number_of_frame {
 
-        alter_offset = synthesis_hopsize as usize * i;
+		// Determine the ratio that time-stretch needs synthesis hop size overlapping.
+		alter_offset = if mode == command::Mode::TimeStretch {
+			synthesis_hopsize as usize * i
+		} else {
+			analysis_hopsize as usize * i
+		};
 
         // (∆tφa) (m,n) and (∆fφa) (m,n) are computed for all m and current n
         for j in 0..fft_size {
@@ -308,11 +313,19 @@ fn main() -> WaveResult<()> {
             y_real[j] = y_real[j] * analysis_window[j];
         }
 
+		// Pitch-shift needs interpolation of audio signal.
+		let synthesized_buffer = if mode == command::Mode::PitchShift {
+			let interpolate_length = (fft_size as f64 * analysis_hopsize / synthesis_hopsize) as usize;
+			interpolation(&fft_size, &interpolate_length, &y_real, &ratio)
+		} else {
+			y_real.clone()
+		};
+
         for j in 0..frame_size {
             if alter_offset + j >= result_buffer.len() {
                 break;
             }
-            result_buffer[alter_offset + j] = result_buffer[alter_offset + j] + y_real[j];
+            result_buffer[alter_offset + j] = result_buffer[alter_offset + j] + synthesized_buffer[j];
         }
     }
 
