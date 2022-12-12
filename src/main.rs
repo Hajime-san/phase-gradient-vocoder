@@ -18,134 +18,6 @@ use write::{ wav_write };
 use heap::MaxHeap;
 use command::{ Args };
 
-fn phase_gradient(fft_size: usize, magnitude: &Vec<Vec<f64>>, phase: &mut Vec<Vec<f64>>, alter_phase: &mut Vec<Vec<f64>>, time_delta_phi: &Vec<Vec<f64>>, frequency_forward_delta_phi: &Vec<Vec<f64>>, frequency_backward_delta_phi: &Vec<Vec<f64>>, frame: usize) {
-
-    if frame as isize - 1 <= 0 {
-        for j in 0..fft_size {
-            alter_phase[frame][j] = time_delta_phi[frame][j];
-        }
-        return;
-    }
-
-    let relative_tolerance = 10.0_f64.powi(-6);
-    let mut max_heap: BinaryHeap<MaxHeap> = BinaryHeap::new();
-    let mut rng = rand::thread_rng();
-
-    // abstol ← tol·max(s(m,n) ∪ s(m,n - 1))
-    let absolute_tolerance = relative_tolerance * f64::max(
-                                magnitude[frame].clone().into_iter().fold(0.0/0.0, f64::max),
-                                magnitude[frame - 1].clone().into_iter().fold(0.0/0.0, f64::max)
-                                );
-    // set I = { m: s(m,n) > abstol }
-    let mut frequency_indices: Vec<usize> = magnitude[frame]
-                                                .iter().enumerate()
-                                                .filter(|(_, &x)| x > *&absolute_tolerance)
-                                                .map(|(i, _) | i).collect();
-    // Assign random values to φs(m,n) for m ∉ I
-    let phase_advance: Vec<usize> = phase[frame]
-                                    .iter().enumerate()
-                                    .map(|(i, _)| i).collect();
-    let difference: Vec<usize> = phase_advance
-                                .into_iter()
-                                .filter(|bin | !frequency_indices.contains(bin)).collect();
-    difference.iter().for_each(| i | alter_phase[frame][*i] = rng.gen());
-
-    // Construct a self-sorting max heap for (m,n) tuples
-    // Insert (m,n - 1) for m ∈ I into the heap
-    frequency_indices.iter()
-                    .for_each(|i|
-                        max_heap.push(MaxHeap { magnitude: magnitude[frame - 1][*i], frequency_index: *i, frame: frame - 1 } )
-                    );
-
-    while !frequency_indices.is_empty() {
-        while !max_heap.is_empty() {
-            let max = max_heap.pop().unwrap();
-            let frequency_index = max.frequency_index;
-
-            // propagate the phase in the time direction
-            if max.frame == frame - 1 {
-
-                // (mh,n) ∈ I
-                if frequency_indices.contains(&frequency_index) {
-                    alter_phase[frame][frequency_index] = alter_phase[frame - 1][frequency_index] +
-                                                            time_delta_phi[frame][frequency_index];
-                    // Remove (mh,n) from I
-                    let set_index = frequency_indices.iter().position(|&v| v == frequency_index).unwrap();
-                    frequency_indices.remove(set_index);
-                    // Insert (mh,n) into the heap
-                    max_heap.push(
-                    MaxHeap { magnitude: magnitude[frame][frequency_index], frequency_index: frequency_index, frame: frame }
-                    );
-
-                }
-            }
-
-            // propagate the phase in the frequency direction
-            if max.frame == frame {
-
-                if frequency_index + 1 >= fft_size {
-                    alter_phase[frame][frequency_index] = alter_phase[frame][frequency_index] +
-                                                            frequency_forward_delta_phi[frame][frequency_index];
-
-                    if frequency_indices.contains(&frequency_index) {
-                        // Remove (mh,n) from I
-                        let set_index = frequency_indices.iter().position(|&v| v == frequency_index).unwrap();
-                        frequency_indices.remove(set_index);
-                        // Insert (mh,n) into the heap
-                        max_heap.push(
-                        MaxHeap { magnitude: magnitude[frame][frequency_index], frequency_index: frequency_index, frame: frame }
-                        );
-                    }
-                    continue;
-                }
-
-                if frequency_index as isize - 1 < 0 {
-                    alter_phase[frame][frequency_index] = alter_phase[frame][frequency_index] -
-                                                            frequency_backward_delta_phi[frame][frequency_index];
-                    if frequency_indices.contains(&frequency_index) {
-                        // Remove (mh,n) from I
-                        let set_index = frequency_indices.iter().position(|&v| v == frequency_index).unwrap();
-                        frequency_indices.remove(set_index);
-                        // Insert (mh,n) into the heap
-                        max_heap.push(
-                        MaxHeap { magnitude: magnitude[frame][frequency_index], frequency_index: frequency_index, frame: frame }
-                        );
-                    }
-                    continue;
-                }
-
-                // (mh + 1,n) ∈ I
-                if frequency_indices.contains(&(frequency_index + 1)) {
-                    alter_phase[frame][frequency_index + 1] = alter_phase[frame][frequency_index] +
-                                                                frequency_forward_delta_phi[frame][frequency_index];
-                    // Remove (mh + 1,n) from I
-                    let set_index = frequency_indices.iter().position(|&v| v == frequency_index + 1).unwrap();
-                    frequency_indices.remove(set_index);
-                    // Insert (mh + 1,n) into the heap
-                    max_heap.push(
-                    MaxHeap { magnitude: magnitude[frame][frequency_index + 1], frequency_index: frequency_index + 1, frame: frame }
-                    );
-                }
-
-                // (mh - 1,n) ∈ I
-                if frequency_indices.contains(&(frequency_index - 1)) {
-                    alter_phase[frame][frequency_index - 1] = alter_phase[frame][frequency_index] -
-                                                                frequency_backward_delta_phi[frame][frequency_index];
-                    // Remove (mh - 1,n) from I
-                    let set_index = frequency_indices.iter().position(|&v| v == frequency_index - 1).unwrap();
-                    frequency_indices.remove(set_index);
-                    // Insert (mh - 1,n) into the heap
-                    max_heap.push(
-                    MaxHeap { magnitude: magnitude[frame][frequency_index - 1], frequency_index: frequency_index - 1, frame: frame }
-                    );
-                }
-            }
-        }
-    }
-}
-
-
-#[allow(non_snake_case)]
 fn main() -> WaveResult<()> {
 	// get settings from cli
     let args = Args::parse();
@@ -197,6 +69,10 @@ fn main() -> WaveResult<()> {
 
     let analysis_window = hanning_window(frame_size);
 
+	let relative_tolerance = 10.0_f64.powi(-6);
+	let mut max_heap: BinaryHeap<MaxHeap> = BinaryHeap::new();
+	let mut rng = rand::thread_rng();
+
     let mut offset = 0;
     let mut alter_offset = 0;
 
@@ -204,10 +80,10 @@ fn main() -> WaveResult<()> {
 
         offset = analysis_hopsize as usize * i;
 
-        // zero padding
+        // Zero padding
         x_real.fill(0.0);
         x_imag.fill(0.0);
-        // windowning real signal
+        // Windowning real signal
         for j in 0..frame_size {
             if offset + j >= input_len {
                 break;
@@ -215,7 +91,7 @@ fn main() -> WaveResult<()> {
                 x_real[j] = input[offset + j] * analysis_window[j];
             }
         }
-        // shift real signal to center
+        // Shift real signal to center
         x_real.rotate_right(frame_size);
         // FFT
         fft(&mut x_real, &mut x_imag, fft_size, false);
@@ -293,10 +169,133 @@ fn main() -> WaveResult<()> {
             };
         }
 
-        // unwrap phase between π and -π
-        phase_gradient(fft_size, &magnitude, &mut phase, &mut alter_phase, &time_delta_phi, &frequency_forward_delta_phi, &frequency_backward_delta_phi, i);
 
-        // resynthesis
+		// Start calculate phase gradiation.
+		(|| -> () {
+			// Return current frame's phase due to there're no the last two frame information until it's third frame.
+			if i as isize - 1 <= 0 {
+				for j in 0..fft_size {
+					alter_phase[i][j] = time_delta_phi[i][j];
+				}
+				return;
+			}
+
+			// Preprocessing for heap sort.
+
+			// abstol ← tol·max(s(m,n) ∪ s(m,n - 1))
+			let absolute_tolerance = relative_tolerance * f64::max(
+										magnitude[i].clone().into_iter().fold(0.0/0.0, f64::max),
+										magnitude[i - 1].clone().into_iter().fold(0.0/0.0, f64::max)
+										);
+			// set I = { m: s(m,n) > abstol }
+			let mut frequency_indices: Vec<usize> = magnitude[i]
+														.iter().enumerate()
+														.filter(|(_, &x)| x > *&absolute_tolerance)
+														.map(|(i, _) | i).collect();
+			// Assign random values to φs(m,n) for m ∉ I
+			let phase_advance: Vec<usize> = phase[i]
+											.iter().enumerate()
+											.map(|(i, _)| i).collect();
+			let difference: Vec<usize> = phase_advance
+										.into_iter()
+										.filter(|bin | !frequency_indices.contains(bin)).collect();
+			difference.iter().for_each(| j | alter_phase[i][*j] = rng.gen());
+
+			// Construct a self-sorting max heap for (m,n) tuples
+			// Insert (m,n - 1) for m ∈ I into the heap
+			frequency_indices.iter()
+							.for_each(|j|
+								max_heap.push(MaxHeap { magnitude: magnitude[i - 1][*j], frequency_index: *j, frame: i - 1 } )
+							);
+
+			while !frequency_indices.is_empty() {
+				while !max_heap.is_empty() {
+					let max = max_heap.pop().unwrap();
+					let frequency_index = max.frequency_index;
+
+					// propagate the phase in the time direction
+					if max.frame == i - 1 {
+
+						// (mh,n) ∈ I
+						if frequency_indices.contains(&frequency_index) {
+							alter_phase[i][frequency_index] = alter_phase[i - 1][frequency_index] +
+																	time_delta_phi[i][frequency_index];
+							// Remove (mh,n) from I
+							let set_index = frequency_indices.iter().position(|&v| v == frequency_index).unwrap();
+							frequency_indices.remove(set_index);
+							// Insert (mh,n) into the heap
+							max_heap.push(
+							MaxHeap { magnitude: magnitude[i][frequency_index], frequency_index: frequency_index, frame: i }
+							);
+
+						}
+					}
+
+					// propagate the phase in the frequency direction
+					if max.frame == i {
+
+						if frequency_index + 1 >= fft_size {
+							alter_phase[i][frequency_index] = alter_phase[i][frequency_index] +
+																	frequency_forward_delta_phi[i][frequency_index];
+
+							if frequency_indices.contains(&frequency_index) {
+								// Remove (mh,n) from I
+								let set_index = frequency_indices.iter().position(|&v| v == frequency_index).unwrap();
+								frequency_indices.remove(set_index);
+								// Insert (mh,n) into the heap
+								max_heap.push(
+								MaxHeap { magnitude: magnitude[i][frequency_index], frequency_index: frequency_index, frame: i }
+								);
+							}
+							continue;
+						}
+
+						if frequency_index as isize - 1 < 0 {
+							alter_phase[i][frequency_index] = alter_phase[i][frequency_index] -
+																	frequency_backward_delta_phi[i][frequency_index];
+							if frequency_indices.contains(&frequency_index) {
+								// Remove (mh,n) from I
+								let set_index = frequency_indices.iter().position(|&v| v == frequency_index).unwrap();
+								frequency_indices.remove(set_index);
+								// Insert (mh,n) into the heap
+								max_heap.push(
+								MaxHeap { magnitude: magnitude[i][frequency_index], frequency_index: frequency_index, frame: i }
+								);
+							}
+							continue;
+						}
+
+						// (mh + 1,n) ∈ I
+						if frequency_indices.contains(&(frequency_index + 1)) {
+							alter_phase[i][frequency_index + 1] = alter_phase[i][frequency_index] +
+																		frequency_forward_delta_phi[i][frequency_index];
+							// Remove (mh + 1,n) from I
+							let set_index = frequency_indices.iter().position(|&v| v == frequency_index + 1).unwrap();
+							frequency_indices.remove(set_index);
+							// Insert (mh + 1,n) into the heap
+							max_heap.push(
+							MaxHeap { magnitude: magnitude[i][frequency_index + 1], frequency_index: frequency_index + 1, frame: i }
+							);
+						}
+
+						// (mh - 1,n) ∈ I
+						if frequency_indices.contains(&(frequency_index - 1)) {
+							alter_phase[i][frequency_index - 1] = alter_phase[i][frequency_index] -
+																		frequency_backward_delta_phi[i][frequency_index];
+							// Remove (mh - 1,n) from I
+							let set_index = frequency_indices.iter().position(|&v| v == frequency_index - 1).unwrap();
+							frequency_indices.remove(set_index);
+							// Insert (mh - 1,n) into the heap
+							max_heap.push(
+							MaxHeap { magnitude: magnitude[i][frequency_index - 1], frequency_index: frequency_index - 1, frame: i }
+							);
+						}
+					}
+				}
+			}
+		}());
+
+        // Resynthesis
         for j in 0..fft_size {
             y_real[j] = magnitude[i][j] * alter_phase[i][j].cos();
             y_imag[j] = magnitude[i][j] * alter_phase[i][j].sin();
@@ -305,10 +304,10 @@ fn main() -> WaveResult<()> {
         // IFFT
         fft(&mut y_real, &mut y_imag, fft_size, true);
 
-        // shift real signal to lead
+        // Shift real signal to lead
         y_real.rotate_left(frame_size);
 
-        // windowning real signal
+        // Windowning real signal
         for j in 0..frame_size {
             y_real[j] = y_real[j] * analysis_window[j];
         }
