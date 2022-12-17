@@ -1,11 +1,7 @@
-use std::f64::consts::{ PI };
+use std::f64::consts::PI;
 
 fn pow2(x: usize) -> usize {
-    let y = if x == 0 {
-        1
-    } else {
-        2 << (x - 1)
-    };
+    let y = if x == 0 { 1 } else { 2 << (x - 1) };
     y
 }
 
@@ -88,7 +84,10 @@ mod tests {
     #[test]
     fn fft_test() {
         let sample = 16;
-        let REAL: Vec<f64> = vec![0.0, 0.5, -0.2, 0.88, -0.025, 0.0, -0.33456, 0.1, 0.023, 0.92, -0.132, 0.03, 0.5223, 0.056, -0.618234, 0.2294];
+        let REAL: Vec<f64> = vec![
+            0.0, 0.5, -0.2, 0.88, -0.025, 0.0, -0.33456, 0.1, 0.023, 0.92, -0.132, 0.03, 0.5223,
+            0.056, -0.618234, 0.2294,
+        ];
         let mut real = REAL.clone();
         let mut image: Vec<f64> = vec![0.0; real.len()];
 

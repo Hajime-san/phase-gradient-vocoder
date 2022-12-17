@@ -1,17 +1,8 @@
-use std::{
-    io::{
-        Read,
-    },
-    fs::File,
-    str,
-    string::FromUtf8Error,
-};
 use core::num::ParseIntError;
+use std::{fs::File, io::Read, str, string::FromUtf8Error};
 use thiserror::Error;
 
-use crate::normalize::{
-    GenericNormalize,
-};
+use crate::normalize::GenericNormalize;
 
 #[derive(Debug, Clone)]
 pub struct Wave {
@@ -46,7 +37,10 @@ pub type WaveResult<T> = Result<T, WaveParseError>;
 fn byte_vec_to_num(bytes: &mut Vec<u8>) -> Result<usize, ParseIntError> {
     // reverse byte vector from little-endian
     bytes.reverse();
-    let hexadecimal = bytes.iter().map(|n| format!("{:02X}", n)).collect::<String>();
+    let hexadecimal = bytes
+        .iter()
+        .map(|n| format!("{:02X}", n))
+        .collect::<String>();
     let number = usize::from_str_radix(&hexadecimal, 16)?;
 
     Ok(number)
@@ -108,14 +102,17 @@ pub fn wav_read(filename: &str) -> WaveResult<Wave> {
             data_str,
             chunk_data_size,
             file_size,
-            normalized_sample_data: raw_chunk_data.into_iter().map(|a| normalize::<u8>(a as f64)).collect(),
+            normalized_sample_data: raw_chunk_data
+                .into_iter()
+                .map(|a| normalize::<u8>(a as f64))
+                .collect(),
         }
     } else {
         let restored_normalized_sample_data: Vec<f64> = raw_chunk_data
-                                    .chunks_exact(2)
-                                    .into_iter()
-                                    .map(|a| normalize::<i16>(i16::from_le_bytes([a[0], a[1]]) as f64))
-                                    .collect();
+            .chunks_exact(2)
+            .into_iter()
+            .map(|a| normalize::<i16>(i16::from_le_bytes([a[0], a[1]]) as f64))
+            .collect();
         Wave {
             file_type,
             riff_chunk_size,

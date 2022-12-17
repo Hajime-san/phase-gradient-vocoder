@@ -1,9 +1,9 @@
-use clap::{ Parser, ValueEnum };
+use clap::{Parser, ValueEnum};
 
 #[derive(Clone, Debug, ValueEnum, PartialEq, Parser)]
 pub enum Mode {
     TimeStretch,
-    PitchShift
+    PitchShift,
 }
 
 #[derive(Parser, Debug)]

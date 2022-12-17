@@ -1,14 +1,5 @@
-use std::{
-    ops::{
-        Add,
-        Sub,
-        Mul,
-    }
-};
-use num_traits::{
-    FromPrimitive,
-    ToPrimitive,
-};
+use num_traits::{FromPrimitive, ToPrimitive};
+use std::ops::{Add, Mul, Sub};
 
 pub trait MinMax {
     const MIN: Self;

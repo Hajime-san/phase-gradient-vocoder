@@ -1,13 +1,6 @@
-use std::{
-    fs::File,
-    io::{
-        prelude::Write,
-    },
-};
+use std::{fs::File, io::prelude::Write};
 
-use crate::normalize::{
-    GenericNormalize,
-};
+use crate::normalize::GenericNormalize;
 
 pub fn normalize<T: GenericNormalize>(value: f64) -> Option<T> {
     let max = T::MAX.to_f64()?;
@@ -32,7 +25,13 @@ pub fn normalize<T: GenericNormalize>(value: f64) -> Option<T> {
     Some(T::from_f64(wrapping)?)
 }
 
-pub fn wav_write(filename: &str, buffer: Vec<f64>, size: usize, fs: usize, bit: usize) -> std::io::Result<()> {
+pub fn wav_write(
+    filename: &str,
+    buffer: Vec<f64>,
+    size: usize,
+    fs: usize,
+    bit: usize,
+) -> std::io::Result<()> {
     let mut head: Vec<u8> = vec![0; 44];
 
     // Chunk ID
@@ -130,7 +129,6 @@ pub fn wav_write(filename: &str, buffer: Vec<f64>, size: usize, fs: usize, bit: 
 
     Ok(())
 }
-
 
 #[cfg(test)]
 mod tests {

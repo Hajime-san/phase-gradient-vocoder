@@ -4,7 +4,7 @@ use std::cmp::Ordering;
 pub struct MaxHeap {
     pub magnitude: f64,
     pub frequency_index: usize,
-    pub frame: usize
+    pub frame: usize,
 }
 
 impl PartialEq for MaxHeap {
