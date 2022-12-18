@@ -11,3 +11,4 @@ Cargo.lock
 
 *.wav
 !10s_Hyper Bass (feat. Yunomi).wav
+!/example/*.wav
