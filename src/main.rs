@@ -45,8 +45,8 @@ fn main() -> WaveResult<()> {
     let synthesis_hopsize = frame_size as f64 / 4.0;
     let analysis_hopsize = (synthesis_hopsize / ratio).round();
     let analysis_frequency_step = input_len as f64 / fft_size as f64;
-    let scalling_factor = synthesis_hopsize / synthesis_hopsize / ratio;
-    let synthesis_frequency_step = (scalling_factor * analysis_frequency_step).round();
+	let scalling_factor = synthesis_hopsize / analysis_hopsize;
+    let synthesis_frequency_step = scalling_factor * analysis_frequency_step;
     let number_of_frame = input_len / analysis_hopsize as usize;
     let mut offset = 0;
     let mut alter_offset = 0;
