@@ -17,11 +17,33 @@
             - 1 channel
 
 ## Commands
-- Compile source code and run binary  
+- arguments
+    - required
+        ```
+        -m, --mode <MODE>
+            weather its time-stretch or pitch-shift [possible values: time-stretch, pitch-shift]
+        -r, --ratio <RATIO>
+            factor ratio
+        ```
+    - optional
+        ```
+        -i, --i <I>
+            input wave file path
+        -o, --o <O>
+            output wave file path
+        -b, --buffer <BUFFER>
+            frame size that should be power of two
+        ```
+            
+- example  
     - time stretch  
     `cargo run --release -- --mode time-stretch --ratio 0.8`
     - pitch shift  
     `cargo run --release -- --mode pitch-shift --ratio 1.3`
+
+## Must know
+I set goals for reading and implementing easily not for usefulness, efficiency and fastness about current implementation.  
+So, please **avoid long input wave file** because of it will occur huge memory allocation.
 
 ## Links
 - [Phase Vocoder Done Right](https://www.eurasip.org/Proceedings/Eusipco/Eusipco2017/papers/1570343436.pdf)
