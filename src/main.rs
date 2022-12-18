@@ -45,7 +45,7 @@ fn main() -> WaveResult<()> {
     let synthesis_hopsize = frame_size as f64 / 4.0;
     let analysis_hopsize = (synthesis_hopsize / ratio).round();
     let analysis_frequency_step = input_len as f64 / fft_size as f64;
-	let scalling_factor = synthesis_hopsize / analysis_hopsize;
+    let scalling_factor = synthesis_hopsize / analysis_hopsize;
     let synthesis_frequency_step = scalling_factor * analysis_frequency_step;
     let number_of_frame = input_len / analysis_hopsize as usize;
     let mut offset = 0;
@@ -124,7 +124,7 @@ fn main() -> WaveResult<()> {
             // It cannot calculate center value, if the bin or vector of the bin placed in the edge of buffer,
             // So it should pick the very value.
 
-			// φs(m, n) = φs(m, n − 1) + as / 2 ((∆tφa) (m, n − 1) + (∆tφa) (m, n)) .
+            // φs(m, n) = φs(m, n − 1) + as / 2 ((∆tφa) (m, n − 1) + (∆tφa) (m, n)) .
             time_delta_phi[i][j] = if i as isize - 2 <= 0 || i + 1 >= number_of_frame {
                 synthesis_hopsize
                     * ((1.0 / analysis_hopsize) * principal_argument(phase[i][j] - omega[j])
@@ -139,7 +139,7 @@ fn main() -> WaveResult<()> {
                             + ((2.0 * PI * j as f64) / fft_size as f64)))
             };
 
-			// Centerd value when it locates on the edge of frequency.
+            // Centerd value when it locates on the edge of frequency.
             frequency_delta_phi[i][j] = if j + 1 >= fft_size || j as isize - 1 < 0 {
                 synthesis_frequency_step
                     * (1.0 / analysis_frequency_step * principal_argument(phase[i][j]))
@@ -151,7 +151,7 @@ fn main() -> WaveResult<()> {
                             * principal_argument(phase[i][j + 1] - phase[i][j]))
             };
 
-			// (∆f,fwdφa) (m, n) = 1 / ba [φa(m + 1, n) − φa(m, n)] 2π
+            // (∆f,fwdφa) (m, n) = 1 / ba [φa(m + 1, n) − φa(m, n)] 2π
             frequency_forward_delta_phi[i][j] = if j + 2 >= fft_size || j as isize - 1 < 0 {
                 frequency_delta_phi[i][j]
             } else {
@@ -162,7 +162,7 @@ fn main() -> WaveResult<()> {
                             * principal_argument(phase[i][j + 2] - phase[i][j + 1]))
             };
 
-			// (∆f,backφa) (m, n) = 1 / ba [φa(m, n) − φa(m − 1, n)] 2π
+            // (∆f,backφa) (m, n) = 1 / ba [φa(m, n) − φa(m − 1, n)] 2π
             frequency_backward_delta_phi[i][j] = if j + 1 >= fft_size || j as isize - 2 < 0 {
                 frequency_delta_phi[i][j]
             } else {
