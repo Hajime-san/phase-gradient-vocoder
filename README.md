@@ -1,5 +1,8 @@
 # phase-gradient-vocoder
 
+## Introduction
+[Implementation of audio signal time-stretch and pitch-shift with phase gradient vocoder(“Phase Vocoder Done Right”) ](https://www.abookreview.net/web/implementation-of-audio-signal-time-stretchpitch-shift-with-phase-gradient-vocoderphase-vocoder-done-right/)
+
 ## Enviroment
 - 5.10.102.1-microsoft-standard-WSL2 x86_64 GNU/Linux
 - rustup 1.25.1 (bb60b1e89 2022-07-12)  
